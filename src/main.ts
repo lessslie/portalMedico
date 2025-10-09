@@ -51,7 +51,7 @@ async function bootstrap(): Promise<void> {
       .addTag('teleconsultations', 'Teleconsultas y videollamadas')
       .addTag('notifications', 'Sistema de notificaciones')
       .addTag('files', 'Gestión de archivos y documentos')
-      .addServer(`http://localhost:${process.env.PORT || 3000}/api/v1`, 'Development')
+      .addServer(`http://localhost:${process.env.PORT || 3000}`, 'Development')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

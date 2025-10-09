@@ -23,14 +23,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-
-interface AuthenticatedRequest extends Express.Request {
-  user: {
-    userId: string;
-    username: string;
-    role: string;
-  };
-}
+import { AuthenticatedRequest } from './interfaces/auth.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -91,7 +84,7 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener perfil del usuario autenticado' })
   @ApiResponse({
     status: 200,
@@ -153,7 +146,7 @@ export class AuthController {
 
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Cambiar contraseña (usuario autenticado)',

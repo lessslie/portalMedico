@@ -28,21 +28,24 @@ export class Patient {
   @Column()
   lastName: string;
 
-  @Index({ unique: true })
-  @Column()
-  email: string;
+  @Index({ unique: true, where: 'email IS NOT NULL' })
+  @Column({ nullable: true })
+  email?: string;
 
   @Column({ nullable: true })
-  phone: string;
+  phone?: string;
 
   @Column({ nullable: true })
-  address: string;
+  address?: string;
 
   @Column({ type: 'date' })
   birthDate: Date;
 
   @Column({ nullable: true })
-  insurance: string;
+  insurance?: string;
+
+  @Column({ default: true })
+  isPrimary: boolean;
 
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
   appointments: Appointment[];
@@ -50,9 +53,9 @@ export class Patient {
   @OneToMany(() => MedicalRecord, (record) => record.patient)
   records: MedicalRecord[];
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }
