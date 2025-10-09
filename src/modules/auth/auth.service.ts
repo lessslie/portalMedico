@@ -1,122 +1,312 @@
+// src/modules/auth/auth.service.ts
+
 import {
-    Injectable,
-    UnauthorizedException,
-    ConflictException,
-    InternalServerErrorException,
-  } from '@nestjs/common';
-  import { JwtService } from '@nestjs/jwt';
-  import { InjectRepository } from '@nestjs/typeorm';
-  import { Repository } from 'typeorm';
-  import * as bcrypt from 'bcrypt';
-  import { User, UserRole } from '../users/user.entity';
-  import { Patient } from '../patients/patient.entity';
-  import { RegisterPatientDto } from './dto/register-patient.dto';
-  import { LoginDto } from './dto/login.dto';
-  
-  @Injectable()
-  export class AuthService {
-    constructor(
-      @InjectRepository(User)
-      private readonly userRepository: Repository<User>,
-      @InjectRepository(Patient)
-      private readonly patientRepository: Repository<Patient>,
-      private readonly jwtService: JwtService,
-    ) {}
-  
-    async registerPatient(
-      registerDto: RegisterPatientDto,
-    ): Promise<{ user: User; patient: Patient; access_token: string }> {
-      const { email, password, ...patientData } = registerDto;
-  
-      // Verificar si el username (email) ya existe
-      const existingUser = await this.userRepository.findOne({
-        where: { username: email }, // ← username es el email
-      });
-  
-      if (existingUser) {
-        throw new ConflictException('El email ya está registrado');
-      }
-  
-      // Hash de la contraseña
-      const hashedPassword = await bcrypt.hash(password, 10);
-  
-      // Crear el User
-      const user = this.userRepository.create({
-        username: email, // ← username = email
-        password: hashedPassword,
-        role: UserRole.PATIENT,
-      });
-  
-      try {
-        await this.userRepository.save(user);
-      } catch (error) {
-        throw new InternalServerErrorException('Error al crear el usuario');
-      }
-  
-      // Crear el Patient
-      const patient = this.patientRepository.create({
-        ...patientData,
-        email, // ← email va en Patient
-        birthDate: new Date(patientData.birthDate),
-        user, // Relación con User
-      });
-  
-      try {
-        await this.patientRepository.save(patient);
-      } catch (error) {
-        // Rollback: eliminar el user si falla la creación del patient
-        await this.userRepository.remove(user);
-        throw new InternalServerErrorException('Error al crear el paciente');
-      }
-  
-      // Generar JWT
-      const access_token = this.generateToken(user);
-  
-      return { user, patient, access_token };
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  InternalServerErrorException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { User, UserRole } from '../users/user.entity';
+import { Patient } from '../patients/patient.entity';
+import { EmailService } from '../email/email.service';
+import { RegisterPatientDto } from './dto/register-patient.dto';
+import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+
+interface PasswordResetPayload {
+  sub: string;
+  email: string;
+  type: 'password-reset';
+}
+
+@Injectable()
+export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Patient)
+    private readonly patientRepository: Repository<Patient>,
+    private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
+  ) {}
+
+  async registerPatient(
+    registerDto: RegisterPatientDto,
+  ): Promise<{ user: User; patient: Patient; access_token: string }> {
+    const { email, password, ...patientData } = registerDto;
+
+    const existingUser = await this.userRepository.findOne({
+      where: { username: email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('El email ya está registrado');
     }
-  
-    async login(loginDto: LoginDto): Promise<string> {
-      const { username, password } = loginDto;
-  
-      // Buscar usuario por username
-      const user = await this.userRepository.findOne({
-        where: { username },
-      });
-  
-      if (!user) {
-        throw new UnauthorizedException('Credenciales inválidas');
-      }
-  
-      // Verificar contraseña
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-  
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Credenciales inválidas');
-      }
-  
-      return this.generateToken(user);
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = this.userRepository.create({
+      username: email,
+      password: hashedPassword,
+      role: UserRole.PATIENT,
+    });
+
+    try {
+      await this.userRepository.save(user);
+    } catch {
+      throw new InternalServerErrorException('Error al crear el usuario');
     }
-  
-    generateToken(user: User): string {
-      const payload = {
-        sub: user.id,
-        username: user.username, // ← username en lugar de email
-        role: user.role,
-      };
-  
-      return this.jwtService.sign(payload);
+
+    const patient = this.patientRepository.create({
+      ...patientData,
+      email,
+      birthDate: new Date(patientData.birthDate),
+      user,
+    });
+
+    try {
+      await this.patientRepository.save(patient);
+    } catch {
+      await this.userRepository.remove(user);
+      throw new InternalServerErrorException('Error al crear el paciente');
     }
-  
-    async validateUser(userId: string): Promise<User> {
-      const user = await this.userRepository.findOne({
-        where: { id: userId },
-        relations: ['patients', 'doctors'], // ← Incluir relaciones si las necesitás
-      });
-  
-      if (!user) {
-        throw new UnauthorizedException('Usuario no encontrado');
-      }
-  
-      return user;
-    }
+
+    const access_token = this.generateToken(user);
+
+    return { user, patient, access_token };
   }
+
+  async login(loginDto: LoginDto): Promise<string> {
+    const { username, password } = loginDto;
+
+    const user = await this.userRepository.findOne({
+      where: { username },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    return this.generateToken(user);
+  }
+
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    const { email } = forgotPasswordDto;
+
+    const user = await this.userRepository.findOne({
+      where: { username: email },
+    });
+
+    // Por seguridad, siempre devolvemos el mismo mensaje
+    // para no revelar si el email existe o no
+    if (!user) {
+      return {
+        message:
+          'Si el email existe en nuestro sistema, recibirás instrucciones para recuperar tu contraseña',
+      };
+    }
+
+    // Generar token de reseteo (válido por 1 hora)
+    const resetToken = this.generatePasswordResetToken(user);
+
+    // Obtener nombre del paciente para personalizar el email
+    let userName: string | undefined;
+    try {
+      const patient = await this.patientRepository.findOne({
+        where: { user: { id: user.id } },
+      });
+      if (patient) {
+        userName = patient.firstName;
+      }
+    } catch {
+      this.logger.warn('No se pudo obtener el nombre del paciente');
+    }
+
+    // Enviar email con el token
+    try {
+      const emailResult = await this.emailService.sendPasswordResetEmail({
+        to: user.username,
+        token: resetToken,
+        userName,
+      });
+
+      if (emailResult.success) {
+        this.logger.log(`✅ Email de recuperación enviado a: ${user.username}`);
+      } else {
+        this.logger.warn(
+          `⚠️ No se pudo enviar el email a: ${user.username}. Error: ${emailResult.error}`,
+        );
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      this.logger.error('Error al intentar enviar email de recuperación:', errorMessage);
+    }
+
+    return {
+      message:
+        'Si el email existe en nuestro sistema, recibirás instrucciones para recuperar tu contraseña',
+    };
+  }
+
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    const { token, newPassword, confirmPassword } = resetPasswordDto;
+
+    // Validar que las contraseñas coincidan
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Las contraseñas no coinciden');
+    }
+
+    // Verificar y decodificar el token
+    let payload: PasswordResetPayload;
+    try {
+      payload = this.jwtService.verify<PasswordResetPayload>(token);
+    } catch  {
+      throw new UnauthorizedException(
+        'El token es inválido o ha expirado. Por favor, solicita uno nuevo.',
+      );
+    }
+
+    // Verificar que sea un token de tipo password-reset
+    if (payload.type !== 'password-reset') {
+      throw new UnauthorizedException('Token inválido');
+    }
+
+    // Buscar el usuario
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    // Hashear la nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar la contraseña
+    user.password = hashedPassword;
+
+    try {
+      await this.userRepository.save(user);
+    } catch {
+      throw new InternalServerErrorException(
+        'Error al actualizar la contraseña',
+      );
+    }
+
+    return {
+      message: 'Contraseña actualizada exitosamente',
+    };
+  }
+
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const { currentPassword, newPassword, confirmPassword } =
+      changePasswordDto;
+
+    // Validar que las contraseñas nuevas coincidan
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Las contraseñas nuevas no coinciden');
+    }
+
+    // Validar que la contraseña nueva sea diferente a la actual
+    if (currentPassword === newPassword) {
+      throw new BadRequestException(
+        'La nueva contraseña debe ser diferente a la actual',
+      );
+    }
+
+    // Buscar el usuario
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    // Verificar la contraseña actual
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('La contraseña actual es incorrecta');
+    }
+
+    // Hashear la nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar la contraseña
+    user.password = hashedPassword;
+
+    try {
+      await this.userRepository.save(user);
+    } catch {
+      throw new InternalServerErrorException(
+        'Error al actualizar la contraseña',
+      );
+    }
+
+    return {
+      message: 'Contraseña actualizada exitosamente',
+    };
+  }
+
+  generateToken(user: User): string {
+    const payload = {
+      sub: user.id,
+      username: user.username,
+      role: user.role,
+    };
+
+    return this.jwtService.sign(payload);
+  }
+
+  private generatePasswordResetToken(user: User): string {
+    const payload: PasswordResetPayload = {
+      sub: user.id,
+      email: user.username,
+      type: 'password-reset',
+    };
+
+    // Token válido por 1 hora
+    return this.jwtService.sign(payload, { expiresIn: '1h' });
+  }
+
+  async validateUser(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['patients', 'doctors'],
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    return user;
+  }
+}

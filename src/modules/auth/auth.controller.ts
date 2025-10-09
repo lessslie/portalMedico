@@ -1,3 +1,5 @@
+// src/modules/auth/auth.controller.ts
+
 import {
   Controller,
   Post,
@@ -17,7 +19,18 @@ import {
 import { AuthService } from './auth.service';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+
+interface AuthenticatedRequest extends Express.Request {
+  user: {
+    userId: string;
+    username: string;
+    role: string;
+  };
+}
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -88,7 +101,7 @@ export class AuthController {
     status: 401,
     description: 'No autorizado',
   })
-  async getProfile(@Request() req: Express.Request & { user: { userId: string } }) {
+  async getProfile(@Request() req: AuthenticatedRequest) {
     const user = await this.authService.validateUser(req.user.userId);
 
     return {
@@ -97,5 +110,75 @@ export class AuthController {
       role: user.role,
       createdAt: user.createdAt,
     };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Solicitar recuperación de contraseña',
+    description:
+      'Envía un email con instrucciones para recuperar la contraseña. Por seguridad, siempre devuelve el mismo mensaje independientemente de si el email existe o no.',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Solicitud procesada. Si el email existe, recibirá instrucciones.',
+  })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return await this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Restablecer contraseña con token',
+    description:
+      'Usa el token recibido por email para establecer una nueva contraseña',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Contraseña actualizada exitosamente',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Las contraseñas no coinciden',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Token inválido o expirado',
+  })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return await this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cambiar contraseña (usuario autenticado)',
+    description:
+      'Permite a un usuario autenticado cambiar su contraseña proporcionando la contraseña actual',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Contraseña actualizada exitosamente',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Las contraseñas no coinciden o son inválidas',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'No autorizado o contraseña actual incorrecta',
+  })
+  async changePassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return await this.authService.changePassword(
+      req.user.userId,
+      changePasswordDto,
+    );
   }
 }
