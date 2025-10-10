@@ -20,11 +20,17 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ActivateAccountDto } from './dto/activate-account.dto';
 
 interface PasswordResetPayload {
   sub: string;
   email: string;
   type: 'password-reset';
+}
+interface DoctorActivationPayload {
+  sub: string;
+  email: string;
+  type: 'doctor-activation';
 }
 
 @Injectable()
@@ -97,7 +103,17 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+// Validar que tenga password (doctors sin activar no tienen)
+if (!user.password) {
+  throw new UnauthorizedException(
+    'Tu cuenta aún no ha sido activada. Por favor, revisa tu email.',
+  );
+}
+
+const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
@@ -105,6 +121,84 @@ export class AuthService {
 
     return this.generateToken(user);
   }
+  /**
+ * NUEVO: Doctor activa su cuenta y establece contraseña
+ */
+async activateAccount(
+  activateDto: ActivateAccountDto,
+): Promise<{ message: string; access_token: string }> {
+  const { token, password, confirmPassword } = activateDto;
+
+  // 1️⃣ Validar que las contraseñas coincidan
+  if (password !== confirmPassword) {
+    throw new BadRequestException('Las contraseñas no coinciden');
+  }
+
+  // 2️⃣ Verificar y decodificar el token
+  let payload: DoctorActivationPayload;
+  try {
+    payload = this.jwtService.verify<DoctorActivationPayload>(token);
+  } catch {
+    throw new UnauthorizedException(
+      'El token es inválido o ha expirado. Por favor, contacta al administrador para obtener un nuevo link de activación.',
+    );
+  }
+
+  // 3️⃣ Verificar que sea un token de tipo doctor-activation
+  if (payload.type !== 'doctor-activation') {
+    throw new UnauthorizedException('Token inválido');
+  }
+
+  // 4️⃣ Buscar el usuario
+  const user = await this.userRepository.findOne({
+    where: { id: payload.sub },
+    relations: ['doctor'], // ← Importante: cargar relación doctor
+  });
+
+  if (!user) {
+    throw new UnauthorizedException('Usuario no encontrado');
+  }
+
+  // 5️⃣ Validar que sea un doctor
+  if (user.role !== UserRole.DOCTOR) {
+    throw new UnauthorizedException(
+      'Este token es solo para activación de cuentas de doctores',
+    );
+  }
+
+  // 6️⃣ Validar que no haya sido activado previamente
+  if (user.isActive && user.password) {
+    throw new BadRequestException(
+      'Esta cuenta ya fue activada. Puedes iniciar sesión normalmente.',
+    );
+  }
+
+  // 7️⃣ Hashear la contraseña
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // 8️⃣ Actualizar usuario (activar + establecer password)
+  user.password = hashedPassword;
+  user.isActive = true;
+
+  try {
+    await this.userRepository.save(user);
+  } catch {
+    throw new InternalServerErrorException('Error al activar la cuenta');
+  }
+
+  // 9️⃣ Generar token de sesión
+  const access_token = this.generateToken(user);
+
+  this.logger.log(
+    `✅ Cuenta de doctor activada: ${user.username} (ID: ${user.id})`,
+  );
+
+  return {
+    message: 'Cuenta activada exitosamente. Ya puedes iniciar sesión.',
+    access_token,
+  };
+}
+
 
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
@@ -246,13 +340,16 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado');
     }
-
-    // Verificar la contraseña actual
+    if (!user.password) {
+      throw new UnauthorizedException('La cuenta no tiene contraseña configurada');
+    }
+    
     const isCurrentPasswordValid = await bcrypt.compare(
       currentPassword,
       user.password,
     );
 
+    // Verificar la contraseña actual
     if (!isCurrentPasswordValid) {
       throw new UnauthorizedException('La contraseña actual es incorrecta');
     }
@@ -309,4 +406,5 @@ export class AuthService {
 
     return user;
   }
+  
 }

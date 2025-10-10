@@ -2,12 +2,12 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
   Index,
+  OneToOne,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Appointment } from '../appointments/appointment.entity';
@@ -18,9 +18,9 @@ export class Doctor {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, (user) => user.doctors, { onDelete: 'CASCADE' })
+  @OneToOne(() => User, (user) => user.doctor, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+   user: User; 
 
   @Column({ name: 'first_name', length: 100 })
   firstName: string;

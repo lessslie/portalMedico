@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Patient } from '../patients/patient.entity';
 import { Doctor } from '../doctors/doctor.entity';
@@ -25,8 +26,8 @@ export class User {
   @Column({ unique: true })
   username: string;
 
-  @Column()
-  password: string;
+  @Column({ nullable: true }) // ← NUEVO: nullable para doctors sin activar
+  password?: string;
 
   @Column({
     type: 'enum',
@@ -35,13 +36,17 @@ export class User {
   })
   role: UserRole;
 
+  @Column({ name: 'is_active', default: false }) // ← NUEVO: para activación de cuenta
+  isActive: boolean;
+
+  // ✅ CORREGIDO: 1:N para patients (un user puede tener varios patients)
   @OneToMany(() => Patient, (patient) => patient.user)
   patients: Patient[];
 
-  @OneToMany(() => Doctor, (doctor) => doctor.user)
-  doctors: Doctor[];
+  // ✅ CORREGIDO: 1:1 para doctor (un user = un doctor)
+  @OneToOne(() => Doctor, (doctor) => doctor.user, { nullable: true })
+  doctor?: Doctor;
 
-  // 👇 Relación con notificaciones
   @OneToMany(() => Notification, (notif) => notif.user)
   notifications: Notification[];
 

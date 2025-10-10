@@ -24,12 +24,17 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthenticatedRequest } from './interfaces/auth.interface';
+import { Public } from './decorators/public.decorator';
+import { UserRole } from '../users/user.entity';
+import { Roles } from './decorators/roles.decorator';
+import { ActivateAccountDto } from './dto/activate-account.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register/patient')
   @ApiOperation({ summary: 'Registrar un nuevo paciente' })
   @ApiResponse({
@@ -62,6 +67,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión' })
@@ -81,6 +87,32 @@ export class AuthController {
       access_token,
     };
   }
+
+  @Post('activate-account')
+@HttpCode(HttpStatus.OK)
+@ApiOperation({
+  summary: 'Activar cuenta de doctor y establecer contraseña',
+  description:
+    'Usa el token recibido por email para activar tu cuenta de doctor y establecer tu contraseña. El token es válido por 7 días.',
+})
+@ApiResponse({
+  status: 200,
+  description:
+    'Cuenta activada exitosamente. Puedes iniciar sesión con tus credenciales.',
+})
+@ApiResponse({
+  status: 400,
+  description:
+    'Las contraseñas no coinciden o la cuenta ya fue activada previamente.',
+})
+@ApiResponse({
+  status: 401,
+  description: 'Token inválido o expirado.',
+})
+async activateAccount(@Body() activateDto: ActivateAccountDto) {
+  return await this.authService.activateAccount(activateDto);
+  //              ^^^ authService, NO usersService
+}
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
@@ -105,6 +137,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -121,6 +154,7 @@ export class AuthController {
     return await this.authService.forgotPassword(forgotPasswordDto);
   }
 
+  @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -144,6 +178,9 @@ export class AuthController {
     return await this.authService.resetPassword(resetPasswordDto);
   }
 
+
+
+  @Roles(UserRole.PATIENT)
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

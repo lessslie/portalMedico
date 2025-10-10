@@ -7,6 +7,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { EmailModule } from './modules/email/email.module';
 import { PatientsModule } from './modules/patients/patients.module';
+import { AdminModule } from './modules/admin/admin.module';
+
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -17,6 +20,7 @@ import { PatientsModule } from './modules/patients/patients.module';
     EmailModule,
     PatientsModule,
     UsersModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
