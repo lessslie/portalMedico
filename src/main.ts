@@ -2,6 +2,9 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -25,7 +28,12 @@ async function bootstrap(): Promise<void> {
         transform: true,
       }),
     );
-     //Configuración Swagger con TODOS los módulos
+
+    // 🌐 Configuración Swagger con variable de entorno
+    const swaggerServerUrl =
+      process.env.SWAGGER_SERVER_URL ||
+      `http://localhost:${process.env.PORT || 3000}`;
+
     const config = new DocumentBuilder()
       .setTitle('HealthTech Portal API')
       .setDescription('API para gestión de citas médicas y teleasistencia')
@@ -41,7 +49,6 @@ async function bootstrap(): Promise<void> {
         },
         'JWT-auth',
       )
-      // Tags para todos los modulos
       .addTag('auth', 'Autenticación y autorización')
       .addTag('users', 'Gestión de usuarios del sistema')
       .addTag('patients', 'Gestión de pacientes')
@@ -51,18 +58,19 @@ async function bootstrap(): Promise<void> {
       .addTag('teleconsultations', 'Teleconsultas y videollamadas')
       .addTag('notifications', 'Sistema de notificaciones')
       .addTag('files', 'Gestión de archivos y documentos')
-      .addServer(`http://localhost:${process.env.PORT || 3000}`, 'Development')
+      .addServer(swaggerServerUrl, 'API Server')
+
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    
+
     SwaggerModule.setup('api/v1/docs', app, document, {
       swaggerOptions: {
         persistAuthorization: true,
         tagsSorter: 'alpha',
         operationsSorter: 'alpha',
-        docExpansion: 'none', // Colapsa todo por defecto
-        filter: true, // Permite buscar endpoints
+        docExpansion: 'none',
+        filter: true,
       },
       customSiteTitle: 'HealthTech API Docs',
     });
@@ -70,9 +78,8 @@ async function bootstrap(): Promise<void> {
     const port = process.env.PORT || 3000;
     await app.listen(port);
 
-    logger.log(`🚀 Server running on http://localhost:${port}`);
-    logger.log(`📚 Swagger docs available at: http://localhost:${port}/api/v1/docs`);
- 
+    logger.log(`🚀 Server running on ${swaggerServerUrl}`);
+    logger.log(`📚 Swagger docs available at: ${swaggerServerUrl}/api/v1/docs`);
   } catch (error) {
     logger.error('❌ Error starting server', error);
     process.exit(1);

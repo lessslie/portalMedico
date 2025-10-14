@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Appointment } from '../appointments/appointment.entity';
 import { File } from '../files/file.entity';
+import { Message } from './message.entity'; // 👈 Importamos Message
 
 export enum TeleconsultationStatus {
   SCHEDULED = 'scheduled',
@@ -47,6 +48,12 @@ export class Teleconsultation {
 
   @OneToMany(() => File, (file) => file.teleconsultation, { cascade: true })
   files: File[];
+
+  // 👇 Nueva relación con los mensajes del chat
+  @OneToMany(() => Message, (message) => message.teleconsultation, {
+    cascade: true,
+  })
+  messages: Message[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

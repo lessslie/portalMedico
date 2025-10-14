@@ -39,11 +39,11 @@ export class User {
   @Column({ name: 'is_active', default: false }) // ← NUEVO: para activación de cuenta
   isActive: boolean;
 
-  // ✅ CORREGIDO: 1:N para patients (un user puede tener varios patients)
+  //  CORREGIDO: 1:N para patients (un user puede tener varios patients)
   @OneToMany(() => Patient, (patient) => patient.user)
   patients: Patient[];
 
-  // ✅ CORREGIDO: 1:1 para doctor (un user = un doctor)
+  // CORREGIDO: 1:1 para doctor (un user = un doctor)
   @OneToOne(() => Doctor, (doctor) => doctor.user, { nullable: true })
   doctor?: Doctor;
 

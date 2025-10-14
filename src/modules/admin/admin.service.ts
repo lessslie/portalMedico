@@ -18,6 +18,8 @@ import {
     PendingDoctorsListResponse,
     PendingDoctorResponse,
   } from './interfaces/admin.interface';
+  import { ConfigService } from '@nestjs/config';
+
   
   interface ActivationTokenPayload {
     sub: string; // userId
@@ -36,6 +38,7 @@ import {
       private readonly doctorRepository: Repository<Doctor>,
       private readonly emailService: EmailService,
       private readonly jwtService: JwtService,
+      private readonly configService: ConfigService
     ) {}
   
    /**
@@ -117,17 +120,29 @@ async createDoctor(
     throw new InternalServerErrorException('Error al obtener el doctor creado');
   }
 
-  // 6️⃣ Generar token de activación (válido 7 días)
-  const activationToken = this.generateActivationToken(user);
+ // 5️⃣ Generar token de activación (válido 7 días)
+const activationToken = this.generateActivationToken(user);
 
-  // 7️⃣ Enviar email de activación
-  let emailSent = false;
-  try {
-    const emailResult = await this.emailService.sendDoctorActivationEmail({
-      to: email,
-      token: activationToken,
-      doctorName: `${firstName} ${lastName}`,
-    });
+// 🔍 LOGGING SIEMPRE (para debugging)
+const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
+const activationUrl = `${frontendUrl}/activate-account?token=${activationToken}`;
+this.logger.log('═══════════════════════════════════════');
+this.logger.log(`📧 Email destino: ${email}`);
+this.logger.log(`👤 Doctor: ${firstName} ${lastName}`);
+this.logger.log(`🔑 Token de activación:`);
+this.logger.log(activationToken);
+this.logger.log(`🔗 Link completo:`);
+this.logger.log(activationUrl);
+this.logger.log('═══════════════════════════════════════');
+
+// 6️⃣ Enviar email de activación
+let emailSent = false;
+try {
+  const emailResult = await this.emailService.sendDoctorActivationEmail({
+    to: email,
+    token: activationToken,
+    doctorName: `${firstName} ${lastName}`,
+  });
 
     emailSent = emailResult.success;
 
