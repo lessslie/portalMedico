@@ -74,7 +74,7 @@ export class AdminService {
       );
     }
 
-    // 3️⃣ Crear User (sin password, inactivo)
+    // 3️⃣ Crear User (sin password, inactivo)(xq es un doctor sin activar)
     const user = this.userRepository.create({
       username: email,
       password: undefined,
@@ -89,13 +89,13 @@ export class AdminService {
       throw new InternalServerErrorException('Error al crear el usuario');
     }
 
-    // 4️⃣ Crear Doctor usando TypeORM (sin SQL raw) ✅
+    // 4️⃣ Crear Doctor usando TypeORM (sin SQL raw) y vincularlo al User
     const doctor = this.doctorRepository.create({
       firstName,
       lastName,
       specialty,
       licenseNumber,
-      phone, // ✅ FIX: TypeScript maneja undefined automáticamente
+      phone, // TypeScript maneja undefined automáticamente
       user,
     });
 
@@ -201,7 +201,7 @@ export class AdminService {
           lastName: user.doctor!.lastName,
           specialty: user.doctor!.specialty,
           licenseNumber: user.doctor!.licenseNumber,
-          email: user.username, // ✅ Email viene de user.username
+          email: user.username, // El Email viene de user.username
           createdAt: user.createdAt,
           daysPending,
         };

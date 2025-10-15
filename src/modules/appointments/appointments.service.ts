@@ -27,9 +27,11 @@ export class AppointmentsService {
  async create(dto: CreateAppointmentDto): Promise<Appointment> {
   const patient = await this.patientRepo.findOne({
     where: { id: dto.patientId },
+    relations: ['user'],
   });
   const doctor = await this.doctorRepo.findOne({
     where: { id: dto.doctorId },
+    relations: ['user'],
   });
 
   if (!patient) throw new NotFoundException('Patient not found');

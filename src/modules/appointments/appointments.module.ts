@@ -5,13 +5,16 @@ import { AppointmentsService } from './appointments.service';
 import { Appointment } from './appointment.entity';
 import { Patient } from '../patients/patient.entity';
 import { Doctor } from '../doctors/doctor.entity';
+import { EmailModule } from '../email/email.module';
+import { AppointmentsNotificationService } from './appointments-notification.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment, Patient, Doctor]),
+    EmailModule
   ],
   controllers: [AppointmentsController],
-  providers: [AppointmentsService],
+  providers: [AppointmentsService,AppointmentsNotificationService],
   exports: [AppointmentsService],
 })
 export class AppointmentsModule {}

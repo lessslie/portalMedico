@@ -35,7 +35,7 @@ export class Doctor {
   @Column({ name: 'license_number', length: 50 })
   licenseNumber: string;
 
-  // campo email
+  //  NO hay campo email
   // El email del doctor está en user.username
 
   @Column({ name: 'phone_number', length: 20, nullable: true })

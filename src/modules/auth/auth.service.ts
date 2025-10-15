@@ -188,7 +188,7 @@ export class AuthService {
     const access_token = this.generateToken(user);
 
     this.logger.log(
-      `✅ Cuenta de doctor activada: ${user.username} (ID: ${user.id})`,
+      ` Cuenta de doctor activada: ${user.username} (ID: ${user.id})`,
     );
 
     return {
@@ -397,11 +397,11 @@ export class AuthService {
     return this.jwtService.sign(payload, { expiresIn: '1h' });
   }
 
-  // ✅ FIX: Cambiar 'doctors' a 'doctor' (singular)
+
   async validateUser(userId: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['patients', 'doctor'], //'doctor' singular (OneToOne)
+      relations: ['patients', 'doctor'], // ← 'doctor' singular (OneToOne)
     });
 
     if (!user) {

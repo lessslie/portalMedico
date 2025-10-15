@@ -495,4 +495,424 @@ Este es un email automático, por favor no respondas a este mensaje.
 </html>
     `.trim();
   }
+  
+
+
+
+  /**
+   * NUEVO: Enviar recordatorio de cita al PACIENTE
+   */
+  async sendAppointmentReminderToPatient(params: {
+    patientEmail: string;
+    patientName: string;
+    doctorName: string;
+    doctorSpecialty: string;
+    appointmentDate: Date;
+    appointmentType: string;
+  }): Promise<EmailResponse> {
+    const { patientEmail, patientName, doctorName, doctorSpecialty, appointmentDate, appointmentType } = params;
+
+    const emailFrom = this.configService.get<string>('SMTP_USER') || 'noreply@healthtech.com';
+    const emailFromName = this.configService.get<string>('EMAIL_FROM_NAME') || 'Portal HealthTech';
+
+    // Formatear fecha
+    const dateStr = appointmentDate.toLocaleDateString('es-AR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const timeStr = appointmentDate.toLocaleTimeString('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const mailOptions = {
+      from: `"${emailFromName}" <${emailFrom}>`,
+      to: patientEmail,
+      subject: '🔔 Recordatorio: Tu cita médica es mañana',
+      text: this.getPatientReminderTextTemplate(patientName, doctorName, doctorSpecialty, dateStr, timeStr, appointmentType),
+      html: this.getPatientReminderHtmlTemplate(patientName, doctorName, doctorSpecialty, dateStr, timeStr, appointmentType),
+    };
+
+    if (!this.transporter) {
+      this.logger.warn('📧 EMAIL NO ENVIADO (SMTP no configurado)');
+      this.logger.log('═══════════════════════════════════════');
+      this.logger.log(`Para: ${patientEmail}`);
+      this.logger.log(`Asunto: ${mailOptions.subject}`);
+      this.logger.log(`Cita: ${dateStr} a las ${timeStr}`);
+      this.logger.log('═══════════════════════════════════════');
+      return { success: false, error: 'SMTP no configurado' };
+    }
+
+    try {
+      const info = (await this.transporter.sendMail(mailOptions)) as NodemailerResponse;
+      this.logger.log(`✅ Recordatorio enviado al paciente: ${patientEmail}`);
+      return { success: true, messageId: info.messageId };
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      this.logger.error(`❌ Error al enviar recordatorio a ${patientEmail}:`, errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * NUEVO: Enviar recordatorio de cita al DOCTOR
+   */
+  async sendAppointmentReminderToDoctor(params: {
+    doctorEmail: string;
+    doctorName: string;
+    patientName: string;
+    appointmentDate: Date;
+    appointmentType: string;
+  }): Promise<EmailResponse> {
+    const { doctorEmail, doctorName, patientName, appointmentDate, appointmentType } = params;
+
+    const emailFrom = this.configService.get<string>('SMTP_USER') || 'noreply@healthtech.com';
+    const emailFromName = this.configService.get<string>('EMAIL_FROM_NAME') || 'Portal HealthTech';
+
+    const dateStr = appointmentDate.toLocaleDateString('es-AR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const timeStr = appointmentDate.toLocaleTimeString('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const mailOptions = {
+      from: `"${emailFromName}" <${emailFrom}>`,
+      to: doctorEmail,
+      subject: '🔔 Recordatorio: Cita médica programada mañana',
+      text: this.getDoctorReminderTextTemplate(doctorName, patientName, dateStr, timeStr, appointmentType),
+      html: this.getDoctorReminderHtmlTemplate(doctorName, patientName, dateStr, timeStr, appointmentType),
+    };
+
+    if (!this.transporter) {
+      this.logger.warn('📧 EMAIL NO ENVIADO (SMTP no configurado)');
+      this.logger.log('═══════════════════════════════════════');
+      this.logger.log(`Para: ${doctorEmail}`);
+      this.logger.log(`Asunto: ${mailOptions.subject}`);
+      this.logger.log(`Cita: ${dateStr} a las ${timeStr}`);
+      this.logger.log('═══════════════════════════════════════');
+      return { success: false, error: 'SMTP no configurado' };
+    }
+
+    try {
+      const info = (await this.transporter.sendMail(mailOptions)) as NodemailerResponse;
+      this.logger.log(`✅ Recordatorio enviado al doctor: ${doctorEmail}`);
+      return { success: true, messageId: info.messageId };
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      this.logger.error(`❌ Error al enviar recordatorio a ${doctorEmail}:`, errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Template de texto para recordatorio al PACIENTE
+   */
+  private getPatientReminderTextTemplate(
+    patientName: string,
+    doctorName: string,
+    doctorSpecialty: string,
+    dateStr: string,
+    timeStr: string,
+    appointmentType: string,
+  ): string {
+    return `
+Hola ${patientName},
+
+Este es un recordatorio de tu cita médica programada:
+
+📅 Fecha: ${dateStr}
+🕐 Hora: ${timeStr}
+👨‍⚕️ Doctor: ${doctorName}
+🏥 Especialidad: ${doctorSpecialty}
+📍 Tipo: ${appointmentType === 'virtual' ? 'Consulta Virtual' : 'Presencial'}
+
+${appointmentType === 'virtual' ? 'Recibirás el link de la videollamada antes de la consulta.' : 'Te esperamos en el consultorio.'}
+
+Si necesitas cancelar o reprogramar, por favor contáctanos con anticipación.
+
+Saludos,
+Equipo de Portal HealthTech
+
+---
+Este es un email automático, por favor no respondas a este mensaje.
+    `.trim();
+  }
+
+  /**
+   * Template HTML para recordatorio al PACIENTE
+   */
+  private getPatientReminderHtmlTemplate(
+    patientName: string,
+    doctorName: string,
+    doctorSpecialty: string,
+    dateStr: string,
+    timeStr: string,
+    appointmentType: string,
+  ): string {
+    const isVirtual = appointmentType === 'virtual';
+    
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recordatorio de Cita</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">
+                🔔 Recordatorio de Cita
+              </h1>
+            </td>
+          </tr>
+          
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="margin: 0 0 20px; font-size: 16px; color: #333333;">
+                Hola <strong>${patientName}</strong>,
+              </p>
+              
+              <p style="margin: 0 0 30px; font-size: 16px; color: #666666; line-height: 1.6;">
+                Este es un recordatorio de tu cita médica programada:
+              </p>
+              
+              <!-- Appointment Info Box -->
+              <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin: 0 0 30px; border-radius: 4px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">📅</span>
+                      <strong style="font-size: 14px; color: #333;">Fecha:</strong>
+                      <span style="font-size: 14px; color: #666;">${dateStr}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">🕐</span>
+                      <strong style="font-size: 14px; color: #333;">Hora:</strong>
+                      <span style="font-size: 14px; color: #666;">${timeStr}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">👨‍⚕️</span>
+                      <strong style="font-size: 14px; color: #333;">Doctor:</strong>
+                      <span style="font-size: 14px; color: #666;">${doctorName}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">🏥</span>
+                      <strong style="font-size: 14px; color: #333;">Especialidad:</strong>
+                      <span style="font-size: 14px; color: #666;">${doctorSpecialty}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">${isVirtual ? '💻' : '📍'}</span>
+                      <strong style="font-size: 14px; color: #333;">Tipo:</strong>
+                      <span style="font-size: 14px; color: #666;">${isVirtual ? 'Consulta Virtual' : 'Presencial'}</span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              
+              ${isVirtual ? `
+              <div style="background-color: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 0 0 20px; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #1565c0;">
+                  💻 <strong>Consulta Virtual:</strong> Recibirás el link de la videollamada antes de la consulta.
+                </p>
+              </div>
+              ` : `
+              <div style="background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin: 0 0 20px; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #2e7d32;">
+                  📍 <strong>Consulta Presencial:</strong> Te esperamos en el consultorio.
+                </p>
+              </div>
+              `}
+              
+              <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 0 0 20px; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #856404;">
+                  ⚠️ Si necesitas cancelar o reprogramar, por favor contáctanos con anticipación.
+                </p>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #dee2e6;">
+              <p style="margin: 0 0 10px; font-size: 16px; color: #333333;">
+                Saludos,<br>
+                <strong>Equipo de Portal HealthTech</strong>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #999999;">
+                Este es un email automático, por favor no respondas a este mensaje.
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+  }
+
+  /**
+   * Template de texto para recordatorio al DOCTOR
+   */
+  private getDoctorReminderTextTemplate(
+    doctorName: string,
+    patientName: string,
+    dateStr: string,
+    timeStr: string,
+    appointmentType: string,
+  ): string {
+    return `
+Hola Dr./Dra. ${doctorName},
+
+Recordatorio de cita médica programada:
+
+📅 Fecha: ${dateStr}
+🕐 Hora: ${timeStr}
+👤 Paciente: ${patientName}
+📍 Tipo: ${appointmentType === 'virtual' ? 'Consulta Virtual' : 'Presencial'}
+
+${appointmentType === 'virtual' ? 'El link de la videollamada estará disponible en el portal.' : ''}
+
+Saludos,
+Portal HealthTech
+
+---
+Este es un email automático, por favor no respondas a este mensaje.
+    `.trim();
+  }
+
+  /**
+   * Template HTML para recordatorio al DOCTOR
+   */
+  private getDoctorReminderHtmlTemplate(
+    doctorName: string,
+    patientName: string,
+    dateStr: string,
+    timeStr: string,
+    appointmentType: string,
+  ): string {
+    const isVirtual = appointmentType === 'virtual';
+    
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recordatorio de Cita</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          
+          <tr>
+            <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">
+                🔔 Recordatorio de Cita
+              </h1>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="margin: 0 0 20px; font-size: 16px; color: #333333;">
+                Hola <strong>Dr./Dra. ${doctorName}</strong>,
+              </p>
+              
+              <p style="margin: 0 0 30px; font-size: 16px; color: #666666; line-height: 1.6;">
+                Recordatorio de cita médica programada:
+              </p>
+              
+              <div style="background-color: #f8f9fa; border-left: 4px solid #10b981; padding: 20px; margin: 0 0 30px; border-radius: 4px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">📅</span>
+                      <strong style="font-size: 14px; color: #333;">Fecha:</strong>
+                      <span style="font-size: 14px; color: #666;">${dateStr}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">🕐</span>
+                      <strong style="font-size: 14px; color: #333;">Hora:</strong>
+                      <span style="font-size: 14px; color: #666;">${timeStr}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">👤</span>
+                      <strong style="font-size: 14px; color: #333;">Paciente:</strong>
+                      <span style="font-size: 14px; color: #666;">${patientName}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="font-size: 18px;">${isVirtual ? '💻' : '📍'}</span>
+                      <strong style="font-size: 14px; color: #333;">Tipo:</strong>
+                      <span style="font-size: 14px; color: #666;">${isVirtual ? 'Consulta Virtual' : 'Presencial'}</span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              
+              ${isVirtual ? `
+              <div style="background-color: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 0 0 20px; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #1565c0;">
+                  💻 El link de la videollamada estará disponible en el portal.
+                </p>
+              </div>
+              ` : ''}
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #dee2e6;">
+              <p style="margin: 0 0 10px; font-size: 16px; color: #333333;">
+                Saludos,<br>
+                <strong>Portal HealthTech</strong>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #999999;">
+                Este es un email automático, por favor no respondas a este mensaje.
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+  }
+  
 }
