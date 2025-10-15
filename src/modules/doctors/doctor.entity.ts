@@ -2,7 +2,6 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
@@ -19,17 +18,9 @@ export class Doctor {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-
-  // @ManyToOne(() => User, (user) => user.doctors, { onDelete: 'CASCADE' })
-  // @JoinColumn({ name: 'user_id' })
-  // user: User;
-
-  // TODO: @Compa- Cambié a OneToOne para que compile con User 1:1 Doctor
-// Verificar que no rompa tu módulo. Hablamos mañana.
   @OneToOne(() => User, (user) => user.doctor, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-   user: User; 
-
+  user: User;
 
   @Column({ name: 'first_name', length: 100 })
   firstName: string;
@@ -44,9 +35,8 @@ export class Doctor {
   @Column({ name: 'license_number', length: 50 })
   licenseNumber: string;
 
-  @Index({ unique: true })
-  @Column({ length: 150 })
-  email: string;
+  // campo email
+  // El email del doctor está en user.username
 
   @Column({ name: 'phone_number', length: 20, nullable: true })
   phone?: string;
