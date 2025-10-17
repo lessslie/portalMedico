@@ -10,6 +10,8 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { DoctorAvailabilityModule } from './modules/doctor-availability/doctor-availability.module';
+import { DoctorsModule } from './modules/doctors/doctors.module';
 
 
 @Module({
@@ -24,7 +26,9 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
     PatientsModule,
     UsersModule,
     AdminModule,
-    AppointmentsModule
+    AppointmentsModule,
+    DoctorAvailabilityModule,
+    DoctorsModule,
   ],
 })
 export class AppModule {}

@@ -28,9 +28,9 @@ export class Patient {
   @Column()
   lastName: string;
 
-  @Index({ unique: true, where: 'email IS NOT NULL' })
-  @Column({ nullable: true })
-  email?: string;
+  // @Index({ unique: true, where: 'email IS NOT NULL' })
+  // @Column({ nullable: true })
+  // email?: string;
 
   @Column({ nullable: true })
   phone?: string;

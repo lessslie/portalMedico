@@ -75,9 +75,9 @@ export class AuthService {
 
     const patient = this.patientRepository.create({
       ...patientData,
-      email,
       birthDate: new Date(patientData.birthDate),
       user,
+      isPrimary: true,
     });
 
     try {

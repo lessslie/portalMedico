@@ -61,7 +61,7 @@ export class AuthController {
         id: patient.id,
         firstName: patient.firstName,
         lastName: patient.lastName,
-        email: patient.email,
+        email: patient.user.username,
         phone: patient.phone,
       },
     };

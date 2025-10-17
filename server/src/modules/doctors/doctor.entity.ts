@@ -12,6 +12,7 @@ import {
 import { User } from '../users/user.entity';
 import { Appointment } from '../appointments/appointment.entity';
 import { MedicalRecord } from '../medical-records/medical-record.entity';
+import { DoctorAvailability } from '../doctor-availability/doctor-availability.entity';
 
 @Entity('doctors')
 export class Doctor {
@@ -35,8 +36,8 @@ export class Doctor {
   @Column({ name: 'license_number', length: 50 })
   licenseNumber: string;
 
-  //  NO hay campo email
-  // El email del doctor está en user.username
+@OneToMany(() => DoctorAvailability, (availability) => availability.doctor)
+availabilities: DoctorAvailability[];
 
   @Column({ name: 'phone_number', length: 20, nullable: true })
   phone?: string;

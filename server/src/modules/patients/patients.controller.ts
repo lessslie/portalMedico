@@ -62,14 +62,19 @@ import {
       const patient = await this.patientsService.findPrimaryByUserId(
         req.user.userId,
       );
-  
+   // 🔍 DEBUG - AGREGAR ESTAS 3 LÍNEAS:
+   console.log('═══════════════════════════════════');
+   console.log('🔍 patient.user:', patient.user);
+   console.log('🔍 patient completo:', patient);
+   console.log('═══════════════════════════════════');
+ 
       return {
         message: 'Perfil obtenido exitosamente',
         patient: {
           id: patient.id,
           firstName: patient.firstName,
           lastName: patient.lastName,
-          email: patient.email,
+          email: patient.user.username,
           phone: patient.phone,
           address: patient.address,
           birthDate: patient.birthDate,
@@ -111,7 +116,6 @@ import {
           id: patient.id,
           firstName: patient.firstName,
           lastName: patient.lastName,
-          email: patient.email,
           phone: patient.phone,
           address: patient.address,
           birthDate: patient.birthDate,
@@ -170,7 +174,6 @@ import {
           id: dependent.id,
           firstName: dependent.firstName,
           lastName: dependent.lastName,
-          email: dependent.email,
           phone: dependent.phone,
           address: dependent.address,
           birthDate: dependent.birthDate,
@@ -204,7 +207,6 @@ import {
           id: p.id,
           firstName: p.firstName,
           lastName: p.lastName,
-          email: p.email,
           phone: p.phone,
           birthDate: p.birthDate,
           isPrimary: p.isPrimary,
@@ -240,7 +242,6 @@ import {
           id: patient.id,
           firstName: patient.firstName,
           lastName: patient.lastName,
-          email: patient.email,
           phone: patient.phone,
           address: patient.address,
           birthDate: patient.birthDate,
@@ -286,7 +287,6 @@ import {
           id: patient.id,
           firstName: patient.firstName,
           lastName: patient.lastName,
-          email: patient.email,
           phone: patient.phone,
           address: patient.address,
           birthDate: patient.birthDate,

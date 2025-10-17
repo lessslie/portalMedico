@@ -75,17 +75,6 @@ import {
     ): Promise<Patient> {
       const patient = await this.findPrimaryByUserId(userId);
   
-      // Validar que el email no esté en uso por otro patient
-      if (updateDto.email && updateDto.email !== patient.email) {
-        const existingPatient = await this.patientRepository.findOne({
-          where: { email: updateDto.email },
-        });
-  
-        if (existingPatient && existingPatient.id !== patient.id) {
-          throw new BadRequestException('El email ya está en uso');
-        }
-      }
-  
       // Actualizar campos
       Object.assign(patient, {
         ...updateDto,
@@ -109,17 +98,6 @@ import {
      */
     async update(id: string, updateDto: UpdatePatientDto): Promise<Patient> {
       const patient = await this.findOne(id);
-  
-      // Validar que el email no esté en uso por otro patient
-      if (updateDto.email && updateDto.email !== patient.email) {
-        const existingPatient = await this.patientRepository.findOne({
-          where: { email: updateDto.email },
-        });
-  
-        if (existingPatient && existingPatient.id !== patient.id) {
-          throw new BadRequestException('El email ya está en uso');
-        }
-      }
   
       Object.assign(patient, {
         ...updateDto,
@@ -152,17 +130,6 @@ import {
         throw new BadRequestException(
           'Debes tener un perfil de paciente antes de agregar dependientes',
         );
-      }
-  
-      // Validar que el email no esté en uso (si se proporciona)
-      if (createDto.email) {
-        const existingPatient = await this.patientRepository.findOne({
-          where: { email: createDto.email },
-        });
-  
-        if (existingPatient) {
-          throw new BadRequestException('El email ya está en uso');
-        }
       }
   
       // Crear el dependiente
@@ -213,7 +180,6 @@ import {
         id: patient.id,
         firstName: patient.firstName,
         lastName: patient.lastName,
-        email: patient.email,
         phone: patient.phone,
         address: patient.address,
         birthDate: patient.birthDate,

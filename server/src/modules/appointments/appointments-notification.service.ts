@@ -59,7 +59,7 @@ export class AppointmentsNotificationService {
         try {
           // Email al paciente
           await this.emailService.sendAppointmentReminderToPatient({
-            patientEmail: appointment.patient.email || appointment.patient.user.username,
+            patientEmail: appointment.patient.user.username,
             patientName: appointment.patient.firstName,
             doctorName: `${appointment.doctor.firstName} ${appointment.doctor.lastName}`,
             doctorSpecialty: appointment.doctor.specialty,
